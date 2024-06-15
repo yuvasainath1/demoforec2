@@ -7,22 +7,45 @@ on:
     branches: [ "master" ]
 
 jobs:
-
-  build:
-
+  dockerize:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login Dockerhub
+        env:
+            DOCKER_USERNAME: ${{secrets.DOCKER_USERNAME}}
+            DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
+        run: docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+      - name: Build the Docker image
+        run: docker build -t yuvasainath/demoforec2:${{ github.sha }} .
+      - name: List Docker images
+        run: docker images
+      - name: Push Docker image
+        run: docker push yuvasainath/demoforec2:${{ github.sha }}
+  deploy:
+    runs-on: ubuntu-latest
+    needs: dockerize
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: SSH into EC2 instance and update Docker container
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.EC2_INSTANCE_IP }}
+          username: ec2-user
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+            docker pull yuvasainath/demoforec2:${{ github.sha }}
+            docker stop backend-container || true
+            docker rm backend-container || true
+            docker run -d --name backend-container -p 80:80 yuvasainath/demoforec2:${{ github.sha }}
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: deploy
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Login Dockerhub
-      env:
-          DOCKER_USERNAME: ${{secrets.DOCKER_USERNAME}}
-          DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
-      run: docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-    - name: Build the Docker image
-      run: docker build -t yuvasainath/demoforec2 .
-    - name: List Docker images
-      run: docker images
-    - name: Push Docker image
-      run: docker push yuvasainath/demoforec2:latest
-      
+      - name: Send notification
+        run: echo "Deployment successful!"
