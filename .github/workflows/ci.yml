@@ -21,6 +21,8 @@ jobs:
       run: docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
     - name: Build the Docker image
       run: docker build -t demoforec2 . 
+    - name: Tag Docker image
+      run: docker tag $(docker images -q yuvasainath/demoforec2:latest) yuvasainath/demoforec2:latest
     - name: List Docker images
       run: docker images
     - name: Push Docker image
