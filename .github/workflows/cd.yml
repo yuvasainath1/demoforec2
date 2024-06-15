@@ -1,0 +1,26 @@
+name: CD Pipeline
+
+on:
+  workflowrun:
+    workflows: ["CI Pipeline"]
+    types:
+      -completed
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+
+  build:
+
+    runs-on: self-hosted
+
+    steps:
+    - name: Pull Docker Image from Docker Hub
+      run: sudo docker pull yuvasainath/demoforec2:latest
+    - name: Delete Old Docker Container
+      run: sudo docker rm -f  demoforec2-container || true
+    - name: Run Docker Container
+      run: sudo docker run -d -p 3000:3000 --name demoforec2-container yuvasainath/demoforec2
+      
